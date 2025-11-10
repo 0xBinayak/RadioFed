@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-11-11T01:50:40.784571",
+  "model_type": "knn",
+  "train_accuracy": 0.7908333333333334,
+  "test_accuracy": 0.7045833333333333,
+  "training_time": 0.0008330345153808594,
+  "inference_time_ms_per_sample": 0.010644694169362387,
+  "n_samples": 9600
+}
