@@ -485,7 +485,7 @@ def test_global_model_improvement(temp_dir):
     X_test = np.random.randn(100, 8).astype(np.float32)
     y_test = np.random.randint(0, 2, size=100)
     
-    e
+    
     client_accuracies = []
     client_models_info = []
     
