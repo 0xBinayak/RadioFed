@@ -494,7 +494,6 @@ def test_global_model_improvement(temp_dir):
         X_train = np.random.randn(150, 8).astype(np.float32)
         y_train = np.random.randint(0, 2, size=150)
         
-        l
         knn = KNeighborsClassifier(n_neighbors=5)
         knn.fit(X_train, y_train)
         
