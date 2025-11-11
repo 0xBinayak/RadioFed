@@ -35,6 +35,7 @@ jobs:
       - name: Download and unzip RadioML dataset
         run: |
           echo "Downloading RadioML 2016.10a dataset..."
+          cd data
           curl -L -o ./radioml2016-deepsigcom.zip \
             https://www.kaggle.com/api/v1/datasets/download/nolasthitnotomorrow/radioml2016-deepsigcom || echo "Dataset download skipped (mock run)"
           unzip -o ./radioml2016-deepsigcom.zip -d ./ || echo "No dataset to unzip, skipping"
