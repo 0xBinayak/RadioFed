@@ -147,7 +147,7 @@ unzip ./radioml2016-deepsigcom.zip -d ./
 
 
 ```bash
-uv run  partition_dataset.py
+uv run  data/partition_dataset.py
 ```
 
 Creates balanced partitions for federated learning from RadioML 2016.10a dataset.
