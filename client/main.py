@@ -266,7 +266,7 @@ def train_model_handler(
             results = train_knn_model(
                 features=state.features,
                 labels=state.labels,
-                test_split=0.3,  # Matching notebook's 30% test split
+                test_split=0.3, 
                 n_neighbors=5,
                 random_state=42,
                 verbose=True
@@ -334,8 +334,8 @@ def train_model_handler(
             
             logger.info(f"Training complete! Test Accuracy: {results['test_accuracy']*100:.2f}%")
         else:
-            # Only KNN is supported
-            error_msg = f"❌ Model type '{model_type}' is not supported. Only KNN is available."
+            
+            error_msg = f"Model type '{model_type}' is not supported. Only KNN is available."
             logger.error(error_msg)
             return error_msg, ""
         
@@ -394,7 +394,6 @@ def auto_upload_and_aggregate(client_id: str, server_url: str) -> str:
         n_samples = state.training_results.get('n_samples', len(state.features))
         model_type = state.training_results.get('model_type', 'knn')
         
-        # KNN model upload
         model_path = state.training_results.get('model_path')
         features_path = state.training_results.get('features_path')
         labels_path = state.training_results.get('labels_path')
@@ -411,14 +410,14 @@ def auto_upload_and_aggregate(client_id: str, server_url: str) -> str:
         try:
             import requests
             
-            # Open all required files for KNN upload
+            
             files = {
                 'model_file': open(model_path, 'rb'),
                 'features_file': open(features_path, 'rb'),
                 'labels_file': open(labels_path, 'rb')
             }
             
-            # Use the new /upload_model endpoint
+            
             url = f"{server_url.rstrip('/')}/upload_model/{client_id}"
             params = {
                 'n_samples': n_samples
@@ -426,7 +425,7 @@ def auto_upload_and_aggregate(client_id: str, server_url: str) -> str:
             
             response = requests.post(url, params=params, files=files, timeout=30)
             
-            # Close all files
+            
             for f in files.values():
                 f.close()
             
@@ -436,13 +435,13 @@ def auto_upload_and_aggregate(client_id: str, server_url: str) -> str:
                 pending = upload_status.get('pending_uploads', 0)
                 threshold = upload_status.get('threshold', 2)
                 
-                status_msg = f"✅ KNN model uploaded successfully!\n"
-                status_msg += f"📊 Upload progress: {pending}/{threshold} clients\n"
+                status_msg = f"KNN model uploaded successfully!\n"
+                status_msg += f"Upload progress: {pending}/{threshold} clients\n"
                 
                 if upload_status.get('ready_for_aggregation', False):
-                    status_msg += f"🚀 Auto-aggregation will trigger automatically!"
+                    status_msg += f"Auto-aggregation will trigger automatically!"
                 else:
-                    status_msg += f"⏳ Waiting for more clients..."
+                    status_msg += f"Waiting for more clients..."
                 
                 return status_msg
             else:
@@ -664,7 +663,6 @@ def create_gradio_interface(auto_generate_id: bool = False):
                 )
             config_status = gr.Textbox(label="Status", interactive=False, visible=False)
         
-        # Dataset Section
         with gr.Accordion("Dataset", open=True):
             partition_id_input = gr.Number(
                 label="Partition ID",
@@ -676,12 +674,12 @@ def create_gradio_interface(auto_generate_id: bool = False):
             dataset_status = gr.Textbox(label="Status", interactive=False)
             dataset_info = gr.Markdown("")
         
-        # Feature Extraction Section
+        
         with gr.Accordion("Feature Extraction", open=True):
             extract_features_btn = gr.Button("Extract Features", variant="primary")
             feature_status = gr.Textbox(label="Status", interactive=False)
         
-        # Training Section
+        
         with gr.Accordion("Training", open=True):
             model_type_radio = gr.Radio(
                 choices=["KNN"],

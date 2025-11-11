@@ -54,15 +54,15 @@ def check_server_status():
             print(f"Last Aggregation: {data.get('last_aggregation')}")
             
             if data.get('last_aggregation') is None:
-                print("\n⚠ WARNING: No aggregation has been run yet!")
+                print("\n WARNING: No aggregation has been run yet!")
                 print("  This is why the dashboard shows no data.")
             
-            # Check clients
+            
             clients = data.get('clients', [])
             if clients:
                 print(f"\nClients ({len(clients)}):")
                 
-                # Group by model type (KNN only)
+                
                 knn_clients = []
                 unknown_clients = []
                 
@@ -70,7 +70,6 @@ def check_server_status():
                     client_id = client.get('client_id')
                     model_type = client.get('model_type', 'unknown')
                     
-                    # Infer model type from file path if not set
                     weights_path = client.get('weights_path', '')
                     if 'knn' in weights_path.lower() or model_type == 'knn':
                         model_type = 'knn'
@@ -95,14 +94,14 @@ def check_server_status():
                     'has_aggregation': data.get('last_aggregation') is not None
                 }
             else:
-                print("\n⚠ No clients have uploaded yet")
+                print("\n No clients have uploaded yet")
                 print("  Please train and upload from clients first")
                 return None
         else:
-            print(f"✗ Server returned status code: {response.status_code}")
+            print(f" Server returned status code: {response.status_code}")
             return None
     except Exception as e:
-        print(f"✗ Error: {str(e)}")
+        print(f" Error: {str(e)}")
         return None
 
 
@@ -115,21 +114,21 @@ def suggest_aggregation(status_info):
         return
     
     if status_info['has_aggregation']:
-        print("✓ Aggregation has already been run")
+        print(" Aggregation has already been run")
         print("  Dashboard should be showing data")
         print("\nTo run aggregation again:")
     else:
-        print("⚠ No aggregation has been run yet")
+        print(" No aggregation has been run yet")
         print("\nTo fix the dashboard, run aggregation:")
     
     print()
     
     if status_info['knn'] > 0:
-        print(f"✓ KNN Aggregation ({status_info['knn']} clients available):")
+        print(f" KNN Aggregation ({status_info['knn']} clients available):")
         print(f'  curl -X POST "{SERVER_URL}/aggregate"')
         print()
     else:
-        print("✗ No KNN models available for aggregation")
+        print(" No KNN models available for aggregation")
         print("  Please train and upload from clients first")
 
 
@@ -142,23 +141,22 @@ def check_dashboard():
     try:
         response = requests.get(dashboard_url, timeout=5)
         if response.status_code == 200:
-            print(f"✓ Dashboard is accessible at {dashboard_url}")
+            print(f" Dashboard is accessible at {dashboard_url}")
             print("\nOpen in browser to view visualizations")
         else:
-            print(f"⚠ Dashboard returned status code: {response.status_code}")
+            print(f" Dashboard returned status code: {response.status_code}")
     except requests.exceptions.ConnectionError:
-        print(f"✗ Cannot connect to dashboard at {dashboard_url}")
+        print(f" Cannot connect to dashboard at {dashboard_url}")
         print("  Dashboard may not be running")
     except Exception as e:
-        print(f"⚠ Error checking dashboard: {str(e)}")
+        print(f" Error checking dashboard: {str(e)}")
 
 
 def main():
     """Run all diagnostic checks."""
     print_header("Server Diagnostic Tool")
     print("This tool checks why aggregation isn't working")
-    
-    # Check server health
+
     if not check_server_health():
         print("\n" + "="*70)
         print("DIAGNOSIS: Server is not running")
@@ -166,16 +164,9 @@ def main():
         print("\nSOLUTION: Start the server with: python central/main.py")
         return 1
     
-    # Check server status
     status_info = check_server_status()
-    
-    # Suggest aggregation
     suggest_aggregation(status_info)
-    
-    # Check dashboard
     check_dashboard()
-    
-    # Final summary
     print_header("Summary")
     
     if status_info and not status_info['has_aggregation']:
@@ -186,9 +177,9 @@ def main():
         print("2. Refresh the dashboard (http://localhost:7860)")
         print("3. Verify metrics are displayed")
     elif status_info and status_info['has_aggregation']:
-        print("✓ Server is running")
-        print("✓ Clients have uploaded")
-        print("✓ Aggregation has been run")
+        print(" Server is running")
+        print(" Clients have uploaded")
+        print(" Aggregation has been run")
         print("\nDashboard should be showing data!")
         print("If not, try:")
         print("1. Hard refresh browser (Ctrl+F5 or Cmd+Shift+R)")

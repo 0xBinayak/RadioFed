@@ -19,10 +19,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# ============================================================================
-# Plot Caching for Performance
-# ============================================================================
-
 class PlotCache:
     """
     Cache for generated plots to improve dashboard performance.
@@ -73,7 +69,7 @@ class PlotCache:
         cache_key = f"{key}_round_{round_num}"
         self._cache[cache_key] = figure
         
-        # Clean up old rounds
+        
         self._cleanup_old_rounds()
     
     def invalidate(self, round_num: Optional[int] = None) -> None:
@@ -108,7 +104,7 @@ class PlotCache:
             keys_to_remove = []
             
             for key in self._cache.keys():
-                # Extract round number from key
+                
                 try:
                     round_str = key.split('_round_')[-1]
                     round_num = int(round_str)
@@ -124,13 +120,10 @@ class PlotCache:
                 logger.info(f"Removed {len(keys_to_remove)} old plots from cache")
 
 
-# Global plot cache instance
+
 _plot_cache = PlotCache(max_rounds=10)
 
 
-# ============================================================================
-# Confusion Matrix Visualization
-# ============================================================================
 
 def plot_confusion_matrix(
     y_true: np.ndarray,
@@ -158,13 +151,13 @@ def plot_confusion_matrix(
         >>> y_pred = np.array([0, 1, 1, 1, 0])
         >>> fig = plot_confusion_matrix(y_true, y_pred, ['AM', 'FM'], 'KNN Confusion Matrix')
     """
-    # Compute confusion matrix
+    
     cm = sklearn_confusion_matrix(y_true, y_pred)
     
-    # Create figure with specified size (8, 6)
+    
     fig, ax = plt.subplots(figsize=(8, 6))
     
-    # Create heatmap with Blues colormap
+    
     sns.heatmap(
         cm,
         annot=True,
@@ -177,20 +170,18 @@ def plot_confusion_matrix(
         square=True
     )
     
-    # Format axes labels
+    
     ax.set_xlabel('Predicted Label')
     ax.set_ylabel('True Label')
     ax.set_title(title)
     
-    # Apply tight layout
+    
     plt.tight_layout()
     
     return fig
 
 
-# ============================================================================
-# Accuracy vs SNR Plot
-# ============================================================================
+
 
 def plot_accuracy_vs_snr(
     snr_values: List[float],
@@ -220,11 +211,10 @@ def plot_accuracy_vs_snr(
         >>> knn_acc = [48.0 + i*2.5 for i in range(len(snr_values))]
         >>> fig = plot_accuracy_vs_snr(snr_values, knn_acc, baseline)
     """
-    # Create figure with specified size (10, 6)
+    
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    # Plot two curves with specified markers
-    # Baseline: dashed line with 'o' markers
+    
     ax.plot(
         snr_values,
         baseline_acc,
@@ -236,7 +226,7 @@ def plot_accuracy_vs_snr(
         markersize=6
     )
     
-    # KNN: solid line with 's' (square) markers
+    
     ax.plot(
         snr_values,
         knn_acc,
@@ -247,27 +237,24 @@ def plot_accuracy_vs_snr(
         markersize=6
     )
     
-    # Configure axes
+    
     ax.set_xlabel('SNR (dB)')
     ax.set_ylabel('Accuracy (%)')
     ax.set_ylim(0, 105)
     ax.set_title(title)
     
-    # Add grid with specified style
+    
     ax.grid(True, linestyle='--', alpha=0.7)
     
-    # Add legend
+    
     ax.legend(loc='best')
     
-    # Apply tight layout
+    
     plt.tight_layout()
     
     return fig
 
 
-# ============================================================================
-# Feature Distribution Plots
-# ============================================================================
 
 def plot_feature_distributions(
     dataframe: pd.DataFrame,
@@ -296,16 +283,16 @@ def plot_feature_distributions(
         ... })
         >>> fig = plot_feature_distributions(df, 'amp_kurtosis', 'Amplitude Kurtosis')
     """
-    # Sample 1000 random points if dataset is large
+    
     if len(dataframe) > 1000:
         sampled_df = dataframe.sample(n=1000, random_state=42)
     else:
         sampled_df = dataframe
     
-    # Create figure with specified size (8, 5)
+    
     fig, ax = plt.subplots(figsize=(8, 5))
     
-    # Create histogram with KDE and viridis palette
+    
     sns.histplot(
         data=sampled_df,
         x='Feature',
@@ -317,23 +304,20 @@ def plot_feature_distributions(
         stat='count'
     )
     
-    # Configure axes and labels
+   
     ax.set_xlabel(feature_name.replace('_', ' ').title())
     ax.set_ylabel('Count')
     ax.set_title(title)
     
-    # Add grid on y-axis only
+    
     ax.grid(axis='y', linestyle='--', alpha=0.7)
     
-    # Apply tight layout
+    
     plt.tight_layout()
     
     return fig
 
 
-# ============================================================================
-# Computation Complexity Table
-# ============================================================================
 
 def generate_complexity_table(
     knn_metrics: Dict[str, float]
@@ -355,16 +339,16 @@ def generate_complexity_table(
         >>> knn_metrics = {'training_time': 2.345, 'inference_time': 1.234}
         >>> df = generate_complexity_table(knn_metrics)
     """
-    # Extract metrics with defaults
+    
     knn_training = knn_metrics.get('training_time', 0.0)
     knn_inference = knn_metrics.get('inference_time', 0.0)
     
-    # Format to 3 decimal places
+    
     data = [
         ["K-Nearest Neighbors", round(knn_training, 3), round(knn_inference, 3)]
     ]
     
-    # Create DataFrame
+    
     df = pd.DataFrame(
         data,
         columns=["Method", "Training Time (seconds)", "Average Inference Time (ms/sample)"]
@@ -373,9 +357,6 @@ def generate_complexity_table(
     return df
 
 
-# ============================================================================
-# Cache Management Functions
-# ============================================================================
 
 def get_plot_cache() -> PlotCache:
     """
@@ -407,9 +388,6 @@ def set_cache_round(round_num: int) -> None:
     _plot_cache.set_current_round(round_num)
 
 
-# ============================================================================
-# Convenience Functions for Dashboard Integration
-# ============================================================================
 
 def create_confusion_matrix_from_results(
     y_true: np.ndarray,
@@ -429,7 +407,7 @@ def create_confusion_matrix_from_results(
     """
     classes = ['AM', 'FM']
     
-    # Format title for KNN
+    
     if snr is not None:
         title = f"KNN Confusion Matrix (SNR = {snr} dB)"
     else:
@@ -459,13 +437,13 @@ def create_feature_distribution_plot(
     if class_names is None:
         class_names = ['AM', 'FM']
     
-    # Create DataFrame
+    
     df = pd.DataFrame({
         'Feature': features,
         'Modulation': [class_names[int(label)] for label in labels]
     })
     
-    # Format title
+    
     title = f"{feature_name.replace('_', ' ').title()} Distribution"
     
     return plot_feature_distributions(df, feature_name, title)
@@ -487,7 +465,6 @@ def create_accuracy_comparison_plot(
     Returns:
         Matplotlib figure
     """
-    # Extract accuracy values in order
     knn_acc = [knn_per_snr.get(snr, 0.0) for snr in snr_values]
     baseline_acc = [baseline] * len(snr_values)
     

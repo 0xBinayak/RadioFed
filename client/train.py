@@ -15,7 +15,6 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import time
 
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -36,20 +35,20 @@ def extract_analog_features(signal, fs=128):
     Returns:
         Dictionary of features
     """
-    # Instantaneous Amplitude
+    
     amplitude = np.abs(signal)
     
-    # Instantaneous Phase (unwrapped)
+    
     phase = np.unwrap(np.angle(signal))
     
-    # Instantaneous Frequency (derivative of unwrapped phase)
+    
     if fs == 0:
         instantaneous_frequency = np.zeros_like(phase)
     else:
         instantaneous_frequency = np.diff(phase) / (2 * np.pi) * fs
         instantaneous_frequency = np.pad(instantaneous_frequency, (0, 1), 'constant')
 
-    # Basic statistics with epsilon to prevent division by zero
+    
     std_amp = np.std(amplitude)
     std_freq = np.std(instantaneous_frequency)
 
@@ -100,7 +99,6 @@ def train_knn_model(
         logger.info(f"Training KNN model (n_neighbors={n_neighbors})")
         logger.info(f"Dataset size: {len(features)} samples")
     
-    # Split into train and test sets (stratified by labels)
     X_train, X_test, y_train, y_test = train_test_split(
         features, labels, test_size=test_split, random_state=random_state, stratify=labels
     )
@@ -108,10 +106,10 @@ def train_knn_model(
     if verbose:
         logger.info(f"Train samples: {len(X_train)}, Test samples: {len(X_test)}")
     
-    # Initialize KNN model (matching notebook configuration)
+    
     model = KNeighborsClassifier(n_neighbors=n_neighbors)
     
-    # Train model and measure training time
+    
     start_time_train = time.time()
     model.fit(X_train, y_train)
     end_time_train = time.time()
@@ -120,11 +118,11 @@ def train_knn_model(
     if verbose:
         logger.info(f"Training complete! Time: {training_time:.3f} seconds")
     
-    # Evaluate on training set
+    
     train_predictions = model.predict(X_train)
     train_accuracy = accuracy_score(y_train, train_predictions)
     
-    # Evaluate on test set and measure inference time
+    
     start_time_inference = time.time()
     test_predictions = model.predict(X_test)
     end_time_inference = time.time()
@@ -132,7 +130,7 @@ def train_knn_model(
     
     test_accuracy = accuracy_score(y_test, test_predictions)
     
-    # Compute confusion matrix
+    
     conf_matrix = confusion_matrix(y_test, test_predictions)
     
     if verbose:
@@ -165,10 +163,10 @@ def save_knn_model(model, path: str) -> None:
     import os
     import pickle
     
-    # Ensure directory exists
+    
     os.makedirs(os.path.dirname(path), exist_ok=True)
     
-    # Save model using pickle
+    
     with open(path, 'wb') as f:
         pickle.dump(model, f)
     
@@ -194,7 +192,7 @@ def load_knn_model(path: str):
     if not os.path.exists(path):
         raise FileNotFoundError(f"Model file not found: {path}")
     
-    # Load model using pickle
+    
     with open(path, 'rb') as f:
         model = pickle.load(f)
     

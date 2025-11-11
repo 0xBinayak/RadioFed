@@ -33,7 +33,7 @@ def load_config(config_path: str = "./client/config.json") -> Dict:
     with open(config_path, 'r') as f:
         config = json.load(f)
     
-    # Validate required fields
+    
     _validate_config(config)
     
     return config
@@ -51,10 +51,10 @@ def save_config(config: Dict, config_path: str = "./client/config.json") -> None
         IOError: If the file cannot be written
         ValueError: If required configuration fields are missing
     """
-    # Validate before saving
+    
     _validate_config(config)
     
-    # Ensure directory exists
+    
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
     
     with open(config_path, 'w') as f:
@@ -75,10 +75,10 @@ def save_metrics(
     Raises:
         IOError: If the file cannot be written
     """
-    # Ensure directory exists
+    
     os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
     
-    # Add timestamp if not present
+    
     if 'timestamp' not in metrics:
         metrics['timestamp'] = datetime.now().isoformat()
     
@@ -130,14 +130,14 @@ def _validate_config(config: Dict) -> None:
         if not config[field].strip():
             raise ValueError(f"Configuration field '{field}' cannot be empty")
     
-    # Validate training configuration if present
+    
     if 'training' in config:
         training = config['training']
         
         if not isinstance(training, dict):
             raise ValueError("'training' configuration must be a dictionary")
         
-        # Validate training parameters
+        
         training_fields = {
             'epochs': int,
             'batch_size': int,
@@ -151,7 +151,7 @@ def _validate_config(config: Dict) -> None:
                         f"Training parameter '{field}' must be of type {expected_type}"
                     )
                 
-                # Additional validation
+                
                 if field in ['epochs', 'batch_size'] and training[field] <= 0:
                     raise ValueError(f"Training parameter '{field}' must be positive")
                 

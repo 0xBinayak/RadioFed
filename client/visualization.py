@@ -4,7 +4,7 @@ Generates plots for confusion matrices, training history, and metrics
 """
 
 import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
+matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
@@ -61,7 +61,7 @@ def create_training_history_plot(history):
     """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     
-    # Loss plot
+    
     epochs = range(1, len(history['train_loss']) + 1)
     ax1.plot(epochs, history['train_loss'], 'b-', label='Train Loss', linewidth=2)
     ax1.plot(epochs, history['test_loss'], 'r-', label='Test Loss', linewidth=2)
@@ -71,7 +71,7 @@ def create_training_history_plot(history):
     ax1.legend(fontsize=10)
     ax1.grid(True, alpha=0.3)
     
-    # Accuracy plot
+    
     ax2.plot(epochs, history['train_accuracy'], 'b-', label='Train Accuracy', linewidth=2)
     ax2.plot(epochs, history['test_accuracy'], 'r-', label='Test Accuracy', linewidth=2)
     ax2.set_title('Accuracy History', fontsize=14, fontweight='bold')

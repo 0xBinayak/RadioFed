@@ -15,7 +15,7 @@ import os
 from typing import Dict, Optional, Tuple
 
 
-# Configure logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,10 +34,8 @@ def check_server_status(server_url: str, timeout: int = 5) -> Dict:
         requests.exceptions.RequestException: If connection fails
     """
     try:
-        # Ensure server_url doesn't end with /
-        server_url = server_url.rstrip('/')
         
-        # Query status endpoint
+        server_url = server_url.rstrip('/')
         response = requests.get(
             f"{server_url}/status",
             timeout=timeout
@@ -86,7 +84,7 @@ def upload_weights(
         FileNotFoundError: If weights file doesn't exist
         ValueError: If parameters are invalid
     """
-    # Validate inputs
+    
     if not client_id or len(client_id.strip()) == 0:
         raise ValueError("client_id cannot be empty")
     
@@ -99,26 +97,23 @@ def upload_weights(
     if not weights_path.endswith('.pth'):
         raise ValueError("Weights file must have .pth extension")
     
-    # Ensure server_url doesn't end with /
     server_url = server_url.rstrip('/')
     
-    # Validate server connectivity first
     try:
         check_server_status(server_url, timeout=5)
     except requests.exceptions.RequestException as e:
         logger.error(f"Server connectivity check failed before upload: {e}")
         return False
     
-    # Attempt upload with exponential backoff
     for attempt in range(max_retries):
         try:
             logger.info(f"Uploading weights (attempt {attempt + 1}/{max_retries}): {weights_path}")
             
-            # Prepare file for upload
+            
             with open(weights_path, 'rb') as f:
                 files = {'file': (os.path.basename(weights_path), f, 'application/octet-stream')}
                 
-                # Make POST request
+                
                 response = requests.post(
                     f"{server_url}/upload_weights/{client_id}",
                     params={'n_samples': n_samples},
@@ -135,7 +130,7 @@ def upload_weights(
         except requests.exceptions.Timeout:
             logger.warning(f"Upload timed out (attempt {attempt + 1}/{max_retries})")
             if attempt < max_retries - 1:
-                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                wait_time = 2 ** attempt  
                 logger.info(f"Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             else:
@@ -153,12 +148,11 @@ def upload_weights(
                 return False
         
         except requests.exceptions.HTTPError as e:
-            # Don't retry on client errors (4xx)
+            
             if e.response.status_code >= 400 and e.response.status_code < 500:
                 logger.error(f"Upload failed with client error: {e.response.status_code} - {e.response.text}")
                 return False
             
-            # Retry on server errors (5xx)
             logger.warning(f"Server error during upload (attempt {attempt + 1}/{max_retries}): {e}")
             if attempt < max_retries - 1:
                 wait_time = 2 ** attempt
@@ -193,10 +187,10 @@ def download_global_model(
     Returns:
         True if download successful, False otherwise
     """
-    # Ensure server_url doesn't end with /
+    
     server_url = server_url.rstrip('/')
     
-    # Validate server connectivity first
+    
     try:
         status = check_server_status(server_url, timeout=5)
         if not status.get('global_model_exists', False):
@@ -206,17 +200,17 @@ def download_global_model(
         logger.error(f"Server connectivity check failed before download: {e}")
         return False
     
-    # Create directory if it doesn't exist
+    
     save_dir = os.path.dirname(save_path)
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
     
-    # Attempt download with exponential backoff
+    
     for attempt in range(max_retries):
         try:
             logger.info(f"Downloading global model (attempt {attempt + 1}/{max_retries})")
             
-            # Make GET request
+            
             response = requests.get(
                 f"{server_url}/global_model",
                 timeout=timeout,
@@ -225,7 +219,7 @@ def download_global_model(
             
             response.raise_for_status()
             
-            # Save to file
+            
             with open(save_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
@@ -237,7 +231,7 @@ def download_global_model(
         except requests.exceptions.Timeout:
             logger.warning(f"Download timed out (attempt {attempt + 1}/{max_retries})")
             if attempt < max_retries - 1:
-                wait_time = 2 ** attempt  # Exponential backoff
+                wait_time = 2 ** attempt  
                 logger.info(f"Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             else:
@@ -255,12 +249,10 @@ def download_global_model(
                 return False
         
         except requests.exceptions.HTTPError as e:
-            # Don't retry on client errors (4xx)
             if e.response.status_code >= 400 and e.response.status_code < 500:
                 logger.error(f"Download failed with client error: {e.response.status_code} - {e.response.text}")
                 return False
             
-            # Retry on server errors (5xx)
             logger.warning(f"Server error during download (attempt {attempt + 1}/{max_retries}): {e}")
             if attempt < max_retries - 1:
                 wait_time = 2 ** attempt
@@ -272,7 +264,6 @@ def download_global_model(
         
         except Exception as e:
             logger.error(f"Unexpected error during download: {e}")
-            # Clean up partial download
             if os.path.exists(save_path):
                 try:
                     os.remove(save_path)

@@ -44,6 +44,7 @@ def compute_instantaneous_phase(signal: np.ndarray) -> np.ndarray:
 def compute_instantaneous_frequency(signal: np.ndarray, fs: int = 128) -> np.ndarray:
     """
     Compute instantaneous frequency from complex signal.
+    formula:freq = (1 / 2*pi) * d(phase)/dt = (1 / 2*pi) * d(phase)/dn * fs
     
     Args:
         signal: Complex-valued signal array
@@ -55,7 +56,6 @@ def compute_instantaneous_frequency(signal: np.ndarray, fs: int = 128) -> np.nda
     
     phase = compute_instantaneous_phase(signal)
     
-    #freq = (1 / 2*pi) * d(phase)/dt = (1 / 2*pi) * d(phase)/dn * fs"""
     freq_diff = np.diff(phase) / (2 * np.pi) * fs
     
     

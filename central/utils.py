@@ -17,7 +17,7 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
     logger = logging.getLogger("federated_central")
     logger.setLevel(getattr(logging, log_level.upper()))
     
-    # Create console handler with formatting
+    
     handler = logging.StreamHandler()
     handler.setLevel(getattr(logging, log_level.upper()))
     
@@ -26,8 +26,7 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     handler.setFormatter(formatter)
-    
-    # Avoid duplicate handlers
+   
     if not logger.handlers:
         logger.addHandler(handler)
     
@@ -62,9 +61,9 @@ def validate_weights(weights: Dict[str, Any]) -> bool:
     if not isinstance(weights, dict):
         return False
     
-    # Check that all values are tensors or can be converted to tensors
+    
     for key, value in weights.items():
-        if not hasattr(value, 'shape'):  # Basic check for tensor-like objects
+        if not hasattr(value, 'shape'):  
             return False
     
     return True

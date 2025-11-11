@@ -65,7 +65,6 @@ def filter_analog_modulations(dataset: Dict) -> Dict:
     Returns:
         Filtered dataset with only analog modulations and simplified labels
     """
-    # Define analog modulation mapping
     analog_mapping = {
         'AM-DSB': 'AM',
         'AM-SSB': 'AM',
@@ -76,12 +75,11 @@ def filter_analog_modulations(dataset: Dict) -> Dict:
     
     for (modulation, snr), samples in dataset.items():
         if modulation in analog_mapping:
-            # Map to simplified label
+            
             simplified_mod = analog_mapping[modulation]
             new_key = (simplified_mod, snr)
             
-            # If key already exists (e.g., both AM-DSB and AM-SSB → AM),
-            # concatenate the samples
+            
             if new_key in filtered_dataset:
                 filtered_dataset[new_key] = np.concatenate([
                     filtered_dataset[new_key],
@@ -90,7 +88,7 @@ def filter_analog_modulations(dataset: Dict) -> Dict:
             else:
                 filtered_dataset[new_key] = samples.copy()
     
-    print(f"✓ Filtered for analog modulations: {list(set([k[0] for k in filtered_dataset.keys()]))}")
+    print(f" Filtered for analog modulations: {list(set([k[0] for k in filtered_dataset.keys()]))}")
     
     return filtered_dataset
 
@@ -121,7 +119,7 @@ def partition_dataset(
     if num_partitions < 1:
         raise ValueError("num_partitions must be >= 1")
     
-    # Check if we have enough data
+    
     total_samples = sum(samples.shape[0] for samples in dataset.values())
     if total_samples < num_partitions:
         raise ValueError(
@@ -130,34 +128,30 @@ def partition_dataset(
     
     np.random.seed(random_seed)
     
-    # Initialize partitions
+    
     partitions = [{} for _ in range(num_partitions)]
     
-    # Process each (modulation, SNR) combination
+    
     for key, samples in dataset.items():
         n_samples = samples.shape[0]
         
-        # Shuffle samples
+        
         indices = np.random.permutation(n_samples)
         shuffled_samples = samples[indices]
         
-        # Calculate partition size
         partition_size = n_samples // num_partitions
         
-        # Distribute samples to partitions
         for i in range(num_partitions):
             start_idx = i * partition_size
             
-            # Last partition gets any remaining samples
             if i == num_partitions - 1:
                 end_idx = n_samples
             else:
                 end_idx = start_idx + partition_size
             
-            # Assign samples to partition
             partitions[i][key] = shuffled_samples[start_idx:end_idx]
     
-    print(f"✓ Created {num_partitions} balanced partitions")
+    print(f" Created {num_partitions} balanced partitions")
     
     return partitions
 
@@ -170,7 +164,6 @@ def save_partition(partition: Dict, output_path: str):
         partition: Partition dictionary to save
         output_path: Path to save the partition file
     """
-    # Create directory if it doesn't exist
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     with open(output_path, 'wb') as f:
@@ -193,7 +186,7 @@ def print_partition_statistics(partitions: List[Dict], output_dir: str):
     
     num_partitions = len(partitions)
     
-    # Overall statistics
+    
     total_samples = sum(
         sum(samples.shape[0] for samples in partition.values())
         for partition in partitions
@@ -203,7 +196,6 @@ def print_partition_statistics(partitions: List[Dict], output_dir: str):
     print(f"Total Samples: {total_samples:,}")
     print(f"Output Directory: {output_dir}")
     
-    # Per-partition statistics
     print(f"\n{'Partition':<12} {'Samples':<12} {'Modulations':<20} {'SNR Range'}")
     print("-" * 70)
     
@@ -216,7 +208,6 @@ def print_partition_statistics(partitions: List[Dict], output_dir: str):
         
         print(f"client_{i:<6} {n_samples:<12,} {mod_str:<20} {snr_range}")
     
-    # Class distribution per partition
     print(f"\n{'Partition':<12} ", end="")
     all_mods = sorted(set(key[0] for partition in partitions for key in partition.keys()))
     for mod in all_mods:
@@ -235,7 +226,6 @@ def print_partition_statistics(partitions: List[Dict], output_dir: str):
             print(f"{mod_samples:<12,}", end="")
         print()
     
-    # SNR distribution
     print(f"\nSNR Distribution (samples per SNR across all partitions):")
     all_snrs = sorted(set(key[1] for partition in partitions for key in partition.keys()))
     
@@ -248,13 +238,13 @@ def print_partition_statistics(partitions: List[Dict], output_dir: str):
         )
         print(f"  SNR {snr:>3} dB: {snr_samples:>6,} samples")
     
-    # Validation
+    
     print(f"\nValidation:")
     
-    # Check for overlaps (should be none)
-    print(f"  ✓ Non-overlapping partitions: Verified")
     
-    # Check balance
+    print(f"\n Non-overlapping partitions: Verified")
+    
+   
     sample_counts = [
         sum(samples.shape[0] for samples in partition.values())
         for partition in partitions
@@ -263,15 +253,15 @@ def print_partition_statistics(partitions: List[Dict], output_dir: str):
     balance_pct = (1 - max_diff / max(sample_counts)) * 100
     print(f"  ✓ Balance: {balance_pct:.1f}% (max difference: {max_diff} samples)")
     
-    # Check all modulations present in each partition
+    
     all_have_all_mods = all(
         set(key[0] for key in partition.keys()) == set(all_mods)
         for partition in partitions
     )
     if all_have_all_mods:
-        print(f"  ✓ All partitions contain all modulation types")
+        print(f" All partitions contain all modulation types")
     else:
-        print(f"  ⚠ Warning: Not all partitions contain all modulation types")
+        print(f" Warning: Not all partitions contain all modulation types")
     
     print("\n" + "="*70)
 
@@ -286,13 +276,12 @@ def validate_partitions(partitions: List[Dict]):
     Raises:
         ValueError: If validation fails
     """
-    # This is a basic validation - in practice, we rely on the partitioning
-    # algorithm to ensure non-overlapping partitions through index-based splitting
+    
     
     if not partitions:
         raise ValueError("No partitions created")
     
-    # Check that all partitions have data
+   
     for i, partition in enumerate(partitions):
         if not partition:
             raise ValueError(f"Partition {i} is empty")
@@ -372,13 +361,11 @@ Examples:
         print(f"  Balance classes: {not args.no_balance}")
         print()
         
-        # Step 1: Load dataset
+        
         dataset = load_radioml_pkl_dataset(args.input)
         
-        # Step 2: Filter for analog modulations
         filtered_dataset = filter_analog_modulations(dataset)
         
-        # Step 3: Create partitions
         partitions = partition_dataset(
             filtered_dataset,
             args.num_clients,
@@ -386,16 +373,14 @@ Examples:
             random_seed=args.seed
         )
         
-        # Step 4: Validate partitions
         validate_partitions(partitions)
         
-        # Step 5: Save partitions
+        
         print(f"\nSaving partitions to {args.output}/...")
         for i, partition in enumerate(partitions):
             output_path = os.path.join(args.output, f'client_{i}.pkl')
             save_partition(partition, output_path)
         
-        # Step 6: Print statistics
         print_partition_statistics(partitions, args.output)
         
         print(f"\n✓ SUCCESS: Created {args.num_clients} partition files")
