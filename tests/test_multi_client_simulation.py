@@ -7,9 +7,6 @@ workflow with 3 clients, verifying:
 - Aggregation produces improved global model
 - Dashboard displays all metrics correctly
 
-This is task 11.8 from the implementation plan.
-
-Requirements: 1.5, 2.1, 5.1, 6.1, 7.1, 7.2, 7.3, 8.1, 8.2, 8.3
 """
 
 import os
@@ -20,7 +17,7 @@ import requests
 import numpy as np
 from pathlib import Path
 
-# Add parent directory to path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from client.dataset_loader import load_radioml_dataset, flatten_dataset
@@ -124,7 +121,7 @@ def check_server_running(server_url="http://localhost:8000", timeout=5):
         if response.status_code == 200:
             print_success(f"Central server is running at {server_url}")
             
-            # Get server status
+           
             try:
                 status_response = requests.get(f"{server_url}/status", timeout=timeout)
                 if status_response.status_code == 200:
@@ -165,7 +162,7 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
     print("-" * 70)
     
     try:
-        # Step 1: Load partition
+        
         partition_path = f"data/partitions/client_{partition_id}.pkl"
         print_info(f"Loading partition: {partition_path}")
         
@@ -174,7 +171,7 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
         
         print_success(f"Loaded {len(samples)} samples")
         
-        # Step 2: Extract features
+        
         print_info("Extracting features...")
         features, labels = process_dataset(
             samples,
@@ -185,7 +182,7 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
         
         print_success(f"Extracted features: {features.shape}")
         
-        # Step 3: Train model
+        
         print_info(f"Training {model_type.upper()} model...")
         start_time = time.time()
         
@@ -206,7 +203,6 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
         print_info(f"  Training Time: {results['training_time']:.3f}s")
         print_info(f"  Inference Time: {results['inference_time_ms_per_sample']:.3f} ms/sample")
         
-        # Step 4: Save model
         model_dir = Path("client/local")
         model_dir.mkdir(parents=True, exist_ok=True)
         model_path = model_dir / f"client_{client_id}_knn.pkl"
@@ -214,11 +210,11 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
         save_knn_model(results['model'], str(model_path))
         print_success(f"Model saved: {model_path}")
         
-        # Step 5: Upload to server
+        
         print_info("Uploading weights to server...")
         
         try:
-            # Save features and labels for KNN aggregation
+            
             features_path = str(model_path).replace('.pkl', '_features.pkl')
             labels_path = str(model_path).replace('.pkl', '_labels.pkl')
             
@@ -227,7 +223,7 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
             with open(labels_path, 'wb') as f:
                 pickle.dump(labels, f)
             
-            # Prepare files for upload
+            
             with open(model_path, 'rb') as model_f, \
                  open(features_path, 'rb') as features_f, \
                  open(labels_path, 'rb') as labels_f:
@@ -243,7 +239,7 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
                     'model_type': 'knn'
                 }
                 
-                # Use the correct endpoint with client_id in path
+                
                 response = requests.post(
                     f"{server_url}/upload_traditional_model/{client_id}",
                     files=files,
@@ -260,7 +256,7 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
             print_error(f"Upload error: {str(e)}")
             return None
         
-        # Return results
+        
         return {
             'client_id': client_id,
             'model': results['model'],
@@ -295,11 +291,11 @@ def verify_aggregation(client_results):
     print_header("Step 4: Verify Aggregation")
     
     try:
-        # Prepare client models info for aggregation
+        
         client_models_info = []
         
         for result in client_results:
-            # Save features and labels for KNN aggregation
+            
             features_path = result['model_path'].replace('.pkl', '_features.pkl')
             labels_path = result['model_path'].replace('.pkl', '_labels.pkl')
             
@@ -318,19 +314,19 @@ def verify_aggregation(client_results):
         
         print_info(f"Aggregating {len(client_models_info)} client models...")
         
-        # Perform aggregation (KNN only)
+        
         agg_result = aggregate_knn_models(client_models_info, n_neighbors=5)
         
         print_success("Aggregation completed successfully")
         print_info(f"  Total clients: {agg_result['num_clients']}")
         print_info(f"  Total samples: {agg_result['total_samples']}")
         
-        # Create test set from all client data
+        
         all_features = []
         all_labels = []
         
         for result in client_results:
-            # Use a portion of each client's data for testing
+            
             n_test = len(result['features']) // 5
             all_features.append(result['features'][:n_test])
             all_labels.append(result['labels'][:n_test])
@@ -340,7 +336,7 @@ def verify_aggregation(client_results):
         
         print_info(f"Evaluating global model on {len(X_test)} test samples...")
         
-        # Evaluate global model
+        
         global_model = agg_result['global_model']
         
         eval_result = evaluate_global_model(global_model, X_test, y_test)
@@ -348,7 +344,7 @@ def verify_aggregation(client_results):
         print_success(f"Global model accuracy: {eval_result['accuracy']*100:.2f}%")
         print_info(f"  Test samples: {eval_result['n_samples']}")
         
-        # Compare with average client accuracy
+        
         avg_client_acc = np.mean([r['test_accuracy'] for r in client_results])
         print_info(f"  Average client accuracy: {avg_client_acc*100:.2f}%")
         
@@ -385,7 +381,7 @@ def verify_dashboard_metrics(server_url="http://localhost:8000"):
     print_header("Step 5: Verify Dashboard Metrics")
     
     try:
-        # Check server status
+        
         response = requests.get(f"{server_url}/status", timeout=5)
         
         if response.status_code == 200:
@@ -397,7 +393,7 @@ def verify_dashboard_metrics(server_url="http://localhost:8000"):
             print_info(f"  Total samples: {status_data.get('total_samples', 0)}")
             print_info(f"  Current round: {status_data.get('current_round', 0)}")
             
-            # Check if we have client updates
+            
             if status_data.get('total_clients', 0) > 0:
                 print_success(f"Server has received updates from {status_data['total_clients']} clients")
             else:
@@ -438,15 +434,15 @@ def run_simulation(num_clients=3, server_url="http://localhost:8000"):
     print_info(f"  Model type: KNN")
     print_info(f"  Server URL: {server_url}")
     
-    # Step 1: Check partitions
+    
     if not check_partitions_exist(num_clients):
         return False
     
-    # Step 2: Check server
+    
     if not check_server_running(server_url):
         return False
     
-    # Step 3: Train all clients
+    
     print_header("Step 3: Train All Clients")
     
     client_results = []
@@ -460,11 +456,11 @@ def run_simulation(num_clients=3, server_url="http://localhost:8000"):
             return False
         
         client_results.append(result)
-        time.sleep(1)  # Brief pause between clients
+        time.sleep(1)  
     
     print_success(f"\nAll {num_clients} clients trained successfully")
     
-    # Print summary
+    
     print(f"\n{Colors.BOLD}Training Summary:{Colors.RESET}")
     print("-" * 70)
     for result in client_results:
@@ -474,19 +470,19 @@ def run_simulation(num_clients=3, server_url="http://localhost:8000"):
         print(f"    Training Time: {result['training_time']:.3f}s")
         print(f"    Inference Time: {result['inference_time_ms']:.3f} ms/sample")
     
-    # Step 4: Verify aggregation
+    
     agg_result = verify_aggregation(client_results)
     
     if agg_result is None:
         print_error("Aggregation verification failed")
         return False
     
-    # Step 5: Verify dashboard
+    
     if not verify_dashboard_metrics(server_url):
         print_warning("Dashboard metrics verification incomplete")
         print_info("Please manually verify the dashboard at http://localhost:7860")
     
-    # Final summary
+    
     print_header("Simulation Complete")
     
     print_success("All verification steps passed:")
@@ -547,13 +543,12 @@ Examples:
     
     args = parser.parse_args()
     
-    # Run simulation
     success = run_simulation(
         num_clients=args.num_clients,
         server_url=args.server_url
     )
     
-    # Exit with appropriate code
+    
     sys.exit(0 if success else 1)
 
 
