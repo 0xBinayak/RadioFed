@@ -18,9 +18,9 @@ A federated learning system for automatic modulation classification (AMC) using 
 **Feature Extraction** (`client/train.py`):
 ```python
 def extract_analog_features(signal, fs=128):
-    # Extracts 8 features from I/Q signals:
-    # - Amplitude: mean, variance, skewness, kurtosis
-    # - Frequency: mean, variance, skewness, kurtosis
+    """ Extracts 8 features from I/Q signals:
+        Amplitude: mean, variance, skewness, kurtosis
+        Frequency: mean, variance, skewness, kurtosis"""
 ```
 
 **KNN Training**:
@@ -124,7 +124,7 @@ From each 128-sample I/Q signal:
 
 ## Quick Start
 
-### 1. Install Dependencies
+### Install Dependencies
 
 ```bash
 pip install uv
@@ -133,8 +133,18 @@ pip install uv
 uv sync
 ```
 
-### 2. Partition Dataset 
+###  Partition Dataset 
 (for simulation)
+
+#### Download unzip Dataset 
+```bash
+curl -L -o ./radioml2016-deepsigcom.zip \
+  https://www.kaggle.com/api/v1/datasets/download/nolasthitnotomorrow/radioml2016-deepsigcom
+````
+```bash
+unzip ./radioml2016-deepsigcom.zip -d ./
+````
+
 
 ```bash
 uv run  partition_dataset.py
@@ -142,7 +152,12 @@ uv run  partition_dataset.py
 
 Creates balanced partitions for federated learning from RadioML 2016.10a dataset.
 
-### 3. Start Central Server
+###  Run Tests
+```bash
+uv run pytest tests
+```
+
+### Start Central Server
 
 ```bash
 uv run  central/main.py
@@ -150,7 +165,7 @@ uv run  central/main.py
 
 Server runs on `http://localhost:8000` with dashboard at `http://localhost:7860`
 
-### 4. Start Clients
+###  Start Clients
 
 ```bash
 uv run client/main.py --port 7861 --auto-id
@@ -160,22 +175,27 @@ uv run client/main.py --port 7862 --auto-id
 ```
 ```bash
 uv run client/main.py --port 7863 --auto-id
+
+
 ```
 
-### 5. Train on Each Client
+###  Train on Each Client
 
 1. Open client UI (e.g., `http://localhost:7861`)
 2. Click "Load Partition"
 3. Click "Extract Features" (wait 1-3 minutes)
 4. Click "Train Model" (auto-uploads when complete)
 
-### 6. View Results
+###  View Results
 
 Open dashboard at `http://localhost:7860` to see:
 - Real-time accuracy trends
 - Confusion matrices
 - Per-SNR performance
 - Client status and metrics
+
+
+
 
 
 

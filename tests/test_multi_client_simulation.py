@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from client.dataset_loader import load_radioml_dataset, flatten_dataset
 from client.feature_extract import process_dataset
-from client.train import train_traditional_model, save_traditional_model
+from client.train import train_knn_model, save_knn_model
 from central.aggregator import aggregate_knn_models, evaluate_global_model
 
 
@@ -148,7 +148,7 @@ def check_server_running(server_url="http://localhost:8000", timeout=5):
         return False
 
 
-def simulate_client_training(client_id, partition_id, server_url="http://localhost:8000", model_type='knn'):
+def simulate_client_training(client_id, partition_id, server_url="http://localhost:8000"):
     """
     Simulate a single client's training workflow.
     
@@ -189,13 +189,11 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
         print_info(f"Training {model_type.upper()} model...")
         start_time = time.time()
         
-        results = train_traditional_model(
+        results = train_knn_model(
             features=features,
             labels=labels,
-            model_type=model_type,
             test_split=0.2,
             n_neighbors=5,
-            max_depth=None,
             random_state=42,
             verbose=False
         )
@@ -211,9 +209,9 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
         # Step 4: Save model
         model_dir = Path("client/local")
         model_dir.mkdir(parents=True, exist_ok=True)
-        model_path = model_dir / f"client_{client_id}_{model_type}.pkl"
+        model_path = model_dir / f"client_{client_id}_knn.pkl"
         
-        save_traditional_model(results['model'], str(model_path))
+        save_knn_model(results['model'], str(model_path))
         print_success(f"Model saved: {model_path}")
         
         # Step 5: Upload to server
@@ -242,7 +240,7 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
                 
                 params = {
                     'n_samples': results['n_samples'],
-                    'model_type': model_type
+                    'model_type': 'knn'
                 }
                 
                 # Use the correct endpoint with client_id in path
@@ -283,7 +281,7 @@ def simulate_client_training(client_id, partition_id, server_url="http://localho
         return None
 
 
-def verify_aggregation(client_results, model_type='knn'):
+def verify_aggregation(client_results):
     """
     Verify that aggregation can be performed and produces a valid global model.
     
@@ -320,12 +318,8 @@ def verify_aggregation(client_results, model_type='knn'):
         
         print_info(f"Aggregating {len(client_models_info)} client models...")
         
-        # Perform aggregation
-        if model_type == 'knn':
-            agg_result = aggregate_knn_models(client_models_info, n_neighbors=5)
-        else:
-            from central.aggregator import aggregate_dt_models
-            agg_result = aggregate_dt_models(client_models_info)
+        # Perform aggregation (KNN only)
+        agg_result = aggregate_knn_models(client_models_info, n_neighbors=5)
         
         print_success("Aggregation completed successfully")
         print_info(f"  Total clients: {agg_result['num_clients']}")
@@ -347,14 +341,7 @@ def verify_aggregation(client_results, model_type='knn'):
         print_info(f"Evaluating global model on {len(X_test)} test samples...")
         
         # Evaluate global model
-        if model_type == 'knn':
-            global_model = agg_result['global_model']
-        else:
-            from central.aggregator import DecisionTreeEnsemble
-            global_model = DecisionTreeEnsemble(
-                agg_result['client_models'],
-                agg_result['ensemble_weights']
-            )
+        global_model = agg_result['global_model']
         
         eval_result = evaluate_global_model(global_model, X_test, y_test)
         
@@ -434,13 +421,12 @@ def verify_dashboard_metrics(server_url="http://localhost:8000"):
         return False
 
 
-def run_simulation(num_clients=3, model_type='knn', server_url="http://localhost:8000"):
+def run_simulation(num_clients=3, server_url="http://localhost:8000"):
     """
     Run complete multi-client federated learning simulation.
     
     Args:
         num_clients: Number of clients to simulate
-        model_type: Model type ('knn' or 'dt')
         server_url: Central server URL
         
     Returns:
@@ -449,7 +435,7 @@ def run_simulation(num_clients=3, model_type='knn', server_url="http://localhost
     print_header("Multi-Client Federated Learning Simulation")
     print_info(f"Configuration:")
     print_info(f"  Number of clients: {num_clients}")
-    print_info(f"  Model type: {model_type.upper()}")
+    print_info(f"  Model type: KNN")
     print_info(f"  Server URL: {server_url}")
     
     # Step 1: Check partitions
@@ -467,7 +453,7 @@ def run_simulation(num_clients=3, model_type='knn', server_url="http://localhost
     
     for i in range(num_clients):
         client_id = f"sim_client_{i}"
-        result = simulate_client_training(client_id, i, server_url, model_type)
+        result = simulate_client_training(client_id, i, server_url)
         
         if result is None:
             print_error(f"Client {i} training failed")
@@ -489,7 +475,7 @@ def run_simulation(num_clients=3, model_type='knn', server_url="http://localhost
         print(f"    Inference Time: {result['inference_time_ms']:.3f} ms/sample")
     
     # Step 4: Verify aggregation
-    agg_result = verify_aggregation(client_results, model_type)
+    agg_result = verify_aggregation(client_results)
     
     if agg_result is None:
         print_error("Aggregation verification failed")
@@ -537,8 +523,8 @@ Examples:
   # Run simulation with 3 clients using KNN
   python tests/test_multi_client_simulation.py
   
-  # Run simulation with 5 clients using Decision Tree
-  python tests/test_multi_client_simulation.py --num-clients 5 --model-type dt
+  # Run simulation with 5 clients
+  python tests/test_multi_client_simulation.py --num-clients 5
   
   # Run simulation with custom server URL
   python tests/test_multi_client_simulation.py --server-url http://192.168.1.100:8000
@@ -553,14 +539,6 @@ Examples:
     )
     
     parser.add_argument(
-        '--model-type',
-        type=str,
-        choices=['knn', 'dt'],
-        default='knn',
-        help='Model type to train (default: knn)'
-    )
-    
-    parser.add_argument(
         '--server-url',
         type=str,
         default='http://localhost:8000',
@@ -572,7 +550,6 @@ Examples:
     # Run simulation
     success = run_simulation(
         num_clients=args.num_clients,
-        model_type=args.model_type,
         server_url=args.server_url
     )
     
