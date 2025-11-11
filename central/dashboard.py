@@ -84,13 +84,11 @@ class DashboardState:
         Returns:
             Dictionary containing current metrics
         """
-        # Get latest aggregation results
+        # Get latest aggregation results (KNN only)
         knn_result = get_latest_aggregation_result('knn')
-        dt_result = get_latest_aggregation_result('dt')
         
         return {
             'knn': knn_result,
-            'dt': dt_result,
             'timestamp': datetime.now().isoformat()
         }
 
@@ -167,18 +165,16 @@ def create_dashboard_interface() -> gr.Blocks:
         with gr.Row():
             with gr.Column():
                 metrics_table = gr.Dataframe(
-                    headers=["SNR (dB)", "Baseline Accuracy (%)", "Decision Tree Accuracy (%)", "KNN Accuracy (%)"],
-                    datatype=["number", "number", "number", "number"],
+                    headers=["SNR (dB)", "Baseline Accuracy (%)", "KNN Accuracy (%)"],
+                    datatype=["number", "number", "number"],
                     label="Accuracy by SNR Level"
                 )
         
-        # Confusion Matrices Section (2-column grid)
-        gr.Markdown("## Confusion Matrices")
+        # Confusion Matrix Section
+        gr.Markdown("## Confusion Matrix")
         with gr.Row():
             with gr.Column():
                 knn_confusion_plot = gr.Plot(label="KNN Confusion Matrix")
-            with gr.Column():
-                dt_confusion_plot = gr.Plot(label="Decision Tree Confusion Matrix")
         
         # Accuracy vs SNR Plot Section
         gr.Markdown("## Accuracy vs SNR")
@@ -210,7 +206,6 @@ def create_dashboard_interface() -> gr.Blocks:
                 before_after_table,
                 metrics_table,
                 knn_confusion_plot,
-                dt_confusion_plot,
                 accuracy_snr_plot,
                 complexity_table
             ]
@@ -245,9 +240,8 @@ def update_dashboard() -> Tuple:
     # Update training metrics
     metrics_table_data = get_training_metrics_table()
     
-    # Update confusion matrices
+    # Update confusion matrix (KNN only)
     knn_confusion_fig = generate_confusion_matrix('knn')
-    dt_confusion_fig = generate_confusion_matrix('dt')
     
     # Update accuracy vs SNR plot
     accuracy_snr_fig = generate_accuracy_vs_snr_plot()
@@ -266,7 +260,6 @@ def update_dashboard() -> Tuple:
         before_after_table_data,
         metrics_table_data,
         knn_confusion_fig,
-        dt_confusion_fig,
         accuracy_snr_fig,
         complexity_table_data
     )
@@ -328,24 +321,17 @@ def get_last_aggregation_text() -> str:
     Returns:
         Formatted string with last aggregation time
     """
-    # Check for latest aggregation from either model type
+    # Check for latest aggregation (KNN only)
     knn_result = get_latest_aggregation_result('knn')
-    dt_result = get_latest_aggregation_result('dt')
     
-    timestamps = []
     if knn_result:
-        timestamps.append(knn_result.get('timestamp'))
-    if dt_result:
-        timestamps.append(dt_result.get('timestamp'))
-    
-    if timestamps:
-        latest = max(timestamps)
+        timestamp = knn_result.get('timestamp')
         try:
-            dt = datetime.fromisoformat(latest)
+            dt = datetime.fromisoformat(timestamp)
             formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
             return f"Last Aggregation: {formatted}"
         except:
-            return f"Last Aggregation: {latest}"
+            return f"Last Aggregation: {timestamp}"
     else:
         return "Last Aggregation: Never"
 
@@ -423,19 +409,14 @@ def get_training_metrics_table() -> pd.DataFrame:
     # Calculate baseline accuracy (random guess)
     baseline = dashboard_state.get_baseline_accuracy()
     
-    # Get latest aggregation results
+    # Get latest aggregation results (KNN only)
     knn_result = get_latest_aggregation_result('knn')
-    dt_result = get_latest_aggregation_result('dt')
     
     # Extract per-SNR accuracy if available
     knn_per_snr = {}
-    dt_per_snr = {}
     
     if knn_result and 'result' in knn_result:
         knn_per_snr = knn_result['result'].get('per_snr_accuracy', {})
-    
-    if dt_result and 'result' in dt_result:
-        dt_per_snr = dt_result['result'].get('per_snr_accuracy', {})
     
     # Build table data
     data = []
@@ -443,25 +424,21 @@ def get_training_metrics_table() -> pd.DataFrame:
         # Get accuracy for this SNR level, default to 0.0 if not available
         # Try both int and float keys (JSON may convert float keys to strings)
         knn_acc = knn_per_snr.get(snr, knn_per_snr.get(float(snr), knn_per_snr.get(str(snr), 0.0)))
-        dt_acc = dt_per_snr.get(snr, dt_per_snr.get(float(snr), dt_per_snr.get(str(snr), 0.0)))
         
         # Convert to percentage if needed (values might be 0-1 or 0-100)
         if isinstance(knn_acc, (int, float)) and knn_acc <= 1.0 and knn_acc > 0:
             knn_acc = knn_acc * 100
-        if isinstance(dt_acc, (int, float)) and dt_acc <= 1.0 and dt_acc > 0:
-            dt_acc = dt_acc * 100
         
         # Format to 2 decimal places
         data.append([
             snr,
             round(baseline, 2),
-            round(dt_acc, 2),
             round(knn_acc, 2)
         ])
     
     return pd.DataFrame(
         data,
-        columns=["SNR (dB)", "Baseline Accuracy (%)", "Decision Tree Accuracy (%)", "KNN Accuracy (%)"]
+        columns=["SNR (dB)", "Baseline Accuracy (%)", "KNN Accuracy (%)"]
     )
 
 
@@ -553,26 +530,13 @@ def generate_accuracy_vs_snr_plot() -> plt.Figure:
     baseline_acc = dashboard_state.get_baseline_accuracy()
     baseline = [baseline_acc] * len(snr_values)
     
-    # Get latest aggregation results (after aggregation)
+    # Get latest aggregation results (KNN only)
     knn_result = get_latest_aggregation_result('knn')
-    dt_result = get_latest_aggregation_result('dt')
     
     # Extract per-SNR accuracy
-    dt_accuracy = []
     knn_accuracy = []
     
     for snr in snr_values:
-        # Get DT accuracy for this SNR (try multiple key formats)
-        if dt_result and 'result' in dt_result:
-            dt_per_snr = dt_result['result'].get('per_snr_accuracy', {})
-            dt_acc = dt_per_snr.get(snr, dt_per_snr.get(float(snr), dt_per_snr.get(str(snr), 0.0)))
-            # Convert to percentage if needed
-            if isinstance(dt_acc, (int, float)) and dt_acc <= 1.0 and dt_acc > 0:
-                dt_acc = dt_acc * 100
-            dt_accuracy.append(dt_acc)
-        else:
-            dt_accuracy.append(0.0)
-        
         # Get KNN accuracy for this SNR (try multiple key formats)
         if knn_result and 'result' in knn_result:
             knn_per_snr = knn_result['result'].get('per_snr_accuracy', {})
@@ -585,14 +549,7 @@ def generate_accuracy_vs_snr_plot() -> plt.Figure:
             knn_accuracy.append(0.0)
     
     # Calculate average improvement from baseline
-    dt_avg_improvement = 0.0
     knn_avg_improvement = 0.0
-    
-    if dt_accuracy and any(dt_accuracy):
-        valid_dt = [acc for acc in dt_accuracy if acc > 0]
-        if valid_dt:
-            dt_avg = sum(valid_dt) / len(valid_dt)
-            dt_avg_improvement = dt_avg - baseline_acc
     
     if knn_accuracy and any(knn_accuracy):
         valid_knn = [acc for acc in knn_accuracy if acc > 0]
@@ -600,16 +557,8 @@ def generate_accuracy_vs_snr_plot() -> plt.Figure:
             knn_avg = sum(valid_knn) / len(valid_knn)
             knn_avg_improvement = knn_avg - baseline_acc
     
-    # Plot three curves with specified markers and improvement in legend
+    # Plot two curves with specified markers and improvement in legend
     ax.plot(snr_values, baseline, 'k--', marker='o', label='Baseline', alpha=0.7, linewidth=1.5)
-    
-    if dt_avg_improvement > 0:
-        ax.plot(snr_values, dt_accuracy, 'b-', marker='x', 
-                label=f'Decision Tree (+{dt_avg_improvement:.1f}% avg)', 
-                linewidth=2, markersize=8)
-    else:
-        ax.plot(snr_values, dt_accuracy, 'b-', marker='x', 
-                label='Decision Tree', linewidth=2, markersize=8)
     
     if knn_avg_improvement > 0:
         ax.plot(snr_values, knn_accuracy, 'r-', marker='s', 
@@ -636,33 +585,24 @@ def generate_accuracy_vs_snr_plot() -> plt.Figure:
 
 def get_complexity_table() -> pd.DataFrame:
     """
-    Generate computation complexity comparison table (Table 2 from notebook).
+    Generate computation complexity table for KNN model.
     
     Creates pandas DataFrame with columns: Method, Training Time (seconds),
     Average Inference Time (ms/sample).
-    Adds rows for "Decision Tree" and "K-Nearest Neighbors".
+    Shows row for "K-Nearest Neighbors" only.
     Formats training time to 3 decimal places (e.g., "2.345").
     Formats inference time to 3 decimal places (e.g., "1.234").
     Shows latest timing metrics from aggregation results.
-    Ensures consistent formatting across all values.
     
     Returns:
         DataFrame for Gradio gr.Dataframe()
     """
-    # Get latest aggregation results
+    # Get latest aggregation results (KNN only)
     knn_result = get_latest_aggregation_result('knn')
-    dt_result = get_latest_aggregation_result('dt')
     
     # Extract timing metrics with consistent defaults
-    dt_training_time = 0.000
-    dt_inference_time = 0.000
     knn_training_time = 0.000
     knn_inference_time = 0.000
-    
-    if dt_result and 'result' in dt_result:
-        dt_metrics = dt_result['result']
-        dt_training_time = float(dt_metrics.get('training_time', 0.0))
-        dt_inference_time = float(dt_metrics.get('inference_time_ms_per_sample', 0.0))
     
     if knn_result and 'result' in knn_result:
         knn_metrics = knn_result['result']
@@ -670,17 +610,12 @@ def get_complexity_table() -> pd.DataFrame:
         knn_inference_time = float(knn_metrics.get('inference_time_ms_per_sample', 0.0))
     
     # Check dashboard state for complexity metrics (fallback)
-    if 'dt' in dashboard_state.complexity_metrics:
-        dt_training_time = float(dashboard_state.complexity_metrics['dt'].get('training_time', dt_training_time))
-        dt_inference_time = float(dashboard_state.complexity_metrics['dt'].get('inference_time', dt_inference_time))
-    
     if 'knn' in dashboard_state.complexity_metrics:
         knn_training_time = float(dashboard_state.complexity_metrics['knn'].get('training_time', knn_training_time))
         knn_inference_time = float(dashboard_state.complexity_metrics['knn'].get('inference_time', knn_inference_time))
     
     # Format to 3 decimal places consistently
     data = [
-        ["Decision Tree", f"{dt_training_time:.3f}", f"{dt_inference_time:.3f}"],
         ["K-Nearest Neighbors", f"{knn_training_time:.3f}", f"{knn_inference_time:.3f}"]
     ]
     
@@ -692,11 +627,11 @@ def get_complexity_table() -> pd.DataFrame:
 
 def generate_historical_trends_plot() -> plt.Figure:
     """
-    Generate historical accuracy trends over training rounds.
+    Generate historical accuracy trends over training rounds for KNN.
     
     Fetches the last 10 rounds from metrics history and plots before/after
-    accuracy for both KNN and Decision Tree models. Uses line plots with
-    markers to show the progression of model performance over time.
+    accuracy for KNN model. Uses line plots with markers to show the 
+    progression of model performance over time.
     
     Returns:
         Matplotlib figure for Gradio gr.Plot()
@@ -718,22 +653,16 @@ def generate_historical_trends_plot() -> plt.Figure:
     
     rounds = trends['rounds']
     
-    # Plot KNN trends
+    # Plot KNN trends only
     ax.plot(rounds, trends['knn_before'], 'r--', marker='o', 
             label='KNN (Before Agg)', alpha=0.6, linewidth=1.5, markersize=6)
     ax.plot(rounds, trends['knn_after'], 'r-', marker='o', 
             label='KNN (After Agg)', linewidth=2, markersize=6)
     
-    # Plot DT trends
-    ax.plot(rounds, trends['dt_before'], 'b--', marker='s', 
-            label='DT (Before Agg)', alpha=0.6, linewidth=1.5, markersize=6)
-    ax.plot(rounds, trends['dt_after'], 'b-', marker='s', 
-            label='DT (After Agg)', linewidth=2, markersize=6)
-    
     # Configure axes and styling
     ax.set_xlabel('Training Round')
     ax.set_ylabel('Accuracy')
-    ax.set_title('Model Accuracy Trends Over Training Rounds')
+    ax.set_title('KNN Accuracy Trends Over Training Rounds')
     ax.grid(True, linestyle='--', alpha=0.7)
     ax.legend(loc='best')
     
@@ -750,7 +679,7 @@ def get_before_after_comparison() -> pd.DataFrame:
     
     Fetches the latest round metrics and formats them as a DataFrame showing
     the accuracy before aggregation, after aggregation, and the improvement
-    percentage for both KNN and Decision Tree models.
+    percentage for KNN model.
     
     Returns:
         DataFrame for Gradio gr.Dataframe() with columns:
@@ -766,25 +695,17 @@ def get_before_after_comparison() -> pd.DataFrame:
             columns=['Metric', 'Before', 'After', 'Improvement']
         )
     
-    # Extract metrics
+    # Extract KNN metrics only
     knn_before = latest['before']['knn_accuracy']
     knn_after = latest['after']['knn_accuracy']
     knn_improvement = latest['improvement']['knn']
-    
-    dt_before = latest['before']['dt_accuracy']
-    dt_after = latest['after']['dt_accuracy']
-    dt_improvement = latest['improvement']['dt']
     
     # Format data with percentage improvement
     data = [
         ['KNN Accuracy', 
          f"{knn_before:.2%}",
          f"{knn_after:.2%}",
-         f"+{knn_improvement:.2%}" if knn_improvement >= 0 else f"{knn_improvement:.2%}"],
-        ['DT Accuracy',
-         f"{dt_before:.2%}",
-         f"{dt_after:.2%}",
-         f"+{dt_improvement:.2%}" if dt_improvement >= 0 else f"{dt_improvement:.2%}"]
+         f"+{knn_improvement:.2%}" if knn_improvement >= 0 else f"{knn_improvement:.2%}"]
     ]
     
     return pd.DataFrame(data, columns=['Metric', 'Before', 'After', 'Improvement'])

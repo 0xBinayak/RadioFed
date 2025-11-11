@@ -62,10 +62,8 @@ def check_server_status():
             if clients:
                 print(f"\nClients ({len(clients)}):")
                 
-                # Group by model type
-                neural_clients = []
+                # Group by model type (KNN only)
                 knn_clients = []
-                dt_clients = []
                 unknown_clients = []
                 
                 for client in clients:
@@ -74,35 +72,17 @@ def check_server_status():
                     
                     # Infer model type from file path if not set
                     weights_path = client.get('weights_path', '')
-                    if 'knn' in weights_path.lower():
+                    if 'knn' in weights_path.lower() or model_type == 'knn':
                         model_type = 'knn'
-                    elif 'dt' in weights_path.lower():
-                        model_type = 'dt'
-                    elif model_type == 'unknown' and '.pth' in weights_path:
-                        model_type = 'neural'
                     
-                    if model_type == 'neural':
-                        neural_clients.append(client_id)
-                    elif model_type == 'knn':
+                    if model_type == 'knn':
                         knn_clients.append(client_id)
-                    elif model_type == 'dt':
-                        dt_clients.append(client_id)
                     else:
                         unknown_clients.append(client_id)
-                
-                if neural_clients:
-                    print(f"\n  Neural Network Models ({len(neural_clients)}):")
-                    for cid in neural_clients:
-                        print(f"    - {cid}")
                 
                 if knn_clients:
                     print(f"\n  KNN Models ({len(knn_clients)}):")
                     for cid in knn_clients:
-                        print(f"    - {cid}")
-                
-                if dt_clients:
-                    print(f"\n  Decision Tree Models ({len(dt_clients)}):")
-                    for cid in dt_clients:
                         print(f"    - {cid}")
                 
                 if unknown_clients:
@@ -111,9 +91,7 @@ def check_server_status():
                         print(f"    - {cid}")
                 
                 return {
-                    'neural': len(neural_clients),
                     'knn': len(knn_clients),
-                    'dt': len(dt_clients),
                     'has_aggregation': data.get('last_aggregation') is not None
                 }
             else:
@@ -148,21 +126,10 @@ def suggest_aggregation(status_info):
     
     if status_info['knn'] > 0:
         print(f"✓ KNN Aggregation ({status_info['knn']} clients available):")
-        print(f'  curl -X POST "{SERVER_URL}/aggregate?model_type=knn"')
+        print(f'  curl -X POST "{SERVER_URL}/aggregate"')
         print()
-    
-    if status_info['dt'] > 0:
-        print(f"✓ Decision Tree Aggregation ({status_info['dt']} clients available):")
-        print(f'  curl -X POST "{SERVER_URL}/aggregate?model_type=dt"')
-        print()
-    
-    if status_info['neural'] > 0:
-        print(f"✓ Neural Network Aggregation ({status_info['neural']} clients available):")
-        print(f'  curl -X POST "{SERVER_URL}/aggregate?model_type=neural"')
-        print()
-    
-    if status_info['knn'] == 0 and status_info['dt'] == 0 and status_info['neural'] == 0:
-        print("✗ No models available for aggregation")
+    else:
+        print("✗ No KNN models available for aggregation")
         print("  Please train and upload from clients first")
 
 

@@ -194,21 +194,19 @@ def plot_confusion_matrix(
 
 def plot_accuracy_vs_snr(
     snr_values: List[float],
-    dt_acc: List[float],
     knn_acc: List[float],
     baseline_acc: List[float],
-    title: str = "Model Accuracy vs SNR"
+    title: str = "KNN Model Accuracy vs SNR"
 ) -> plt.Figure:
     """
-    Generate accuracy vs SNR line plot with multiple model curves.
+    Generate accuracy vs SNR line plot for KNN model.
     
-    Creates a line plot comparing baseline, Decision Tree, and KNN accuracy
+    Creates a line plot comparing baseline and KNN accuracy
     across different SNR levels. Uses different markers and line styles for
-    each model.
+    each curve.
     
     Args:
         snr_values: List of SNR values in dB (e.g., [-20, -18, ..., 18])
-        dt_acc: Decision Tree accuracy values (%)
         knn_acc: KNN accuracy values (%)
         baseline_acc: Baseline accuracy values (%)
         title: Plot title
@@ -219,14 +217,13 @@ def plot_accuracy_vs_snr(
     Example:
         >>> snr_values = list(range(-20, 20, 2))
         >>> baseline = [50.0] * len(snr_values)
-        >>> dt_acc = [45.0 + i*2 for i in range(len(snr_values))]
         >>> knn_acc = [48.0 + i*2.5 for i in range(len(snr_values))]
-        >>> fig = plot_accuracy_vs_snr(snr_values, dt_acc, knn_acc, baseline)
+        >>> fig = plot_accuracy_vs_snr(snr_values, knn_acc, baseline)
     """
     # Create figure with specified size (10, 6)
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    # Plot three curves with specified markers
+    # Plot two curves with specified markers
     # Baseline: dashed line with 'o' markers
     ax.plot(
         snr_values,
@@ -237,17 +234,6 @@ def plot_accuracy_vs_snr(
         alpha=0.7,
         linewidth=1.5,
         markersize=6
-    )
-    
-    # Decision Tree: solid line with 'x' markers
-    ax.plot(
-        snr_values,
-        dt_acc,
-        'b-',
-        marker='x',
-        label='Decision Tree',
-        linewidth=2,
-        markersize=8
     )
     
     # KNN: solid line with 's' (square) markers
@@ -350,17 +336,15 @@ def plot_feature_distributions(
 # ============================================================================
 
 def generate_complexity_table(
-    dt_metrics: Dict[str, float],
     knn_metrics: Dict[str, float]
 ) -> pd.DataFrame:
     """
-    Generate computation complexity comparison table.
+    Generate computation complexity table for KNN model.
     
-    Creates a pandas DataFrame comparing training time and inference time
-    for Decision Tree and KNN models.
+    Creates a pandas DataFrame showing training time and inference time
+    for the KNN model.
     
     Args:
-        dt_metrics: Dictionary with 'training_time' and 'inference_time' keys
         knn_metrics: Dictionary with 'training_time' and 'inference_time' keys
     
     Returns:
@@ -368,19 +352,15 @@ def generate_complexity_table(
         Average Inference Time (ms/sample)
     
     Example:
-        >>> dt_metrics = {'training_time': 1.234, 'inference_time': 0.456}
         >>> knn_metrics = {'training_time': 2.345, 'inference_time': 1.234}
-        >>> df = generate_complexity_table(dt_metrics, knn_metrics)
+        >>> df = generate_complexity_table(knn_metrics)
     """
     # Extract metrics with defaults
-    dt_training = dt_metrics.get('training_time', 0.0)
-    dt_inference = dt_metrics.get('inference_time', 0.0)
     knn_training = knn_metrics.get('training_time', 0.0)
     knn_inference = knn_metrics.get('inference_time', 0.0)
     
     # Format to 3 decimal places
     data = [
-        ["Decision Tree", round(dt_training, 3), round(dt_inference, 3)],
         ["K-Nearest Neighbors", round(knn_training, 3), round(knn_inference, 3)]
     ]
     
@@ -434,16 +414,14 @@ def set_cache_round(round_num: int) -> None:
 def create_confusion_matrix_from_results(
     y_true: np.ndarray,
     y_pred: np.ndarray,
-    model_type: str,
     snr: Optional[float] = None
 ) -> plt.Figure:
     """
-    Create confusion matrix with automatic title formatting.
+    Create confusion matrix with automatic title formatting for KNN.
     
     Args:
         y_true: True labels
         y_pred: Predicted labels
-        model_type: Type of model ('knn' or 'dt')
         snr: SNR value for title (optional)
     
     Returns:
@@ -451,12 +429,11 @@ def create_confusion_matrix_from_results(
     """
     classes = ['AM', 'FM']
     
-    # Format title
-    model_name = model_type.upper()
+    # Format title for KNN
     if snr is not None:
-        title = f"{model_name} Confusion Matrix (SNR = {snr} dB)"
+        title = f"KNN Confusion Matrix (SNR = {snr} dB)"
     else:
-        title = f"{model_name} Confusion Matrix"
+        title = "KNN Confusion Matrix"
     
     return plot_confusion_matrix(y_true, y_pred, classes, title)
 
@@ -496,16 +473,14 @@ def create_feature_distribution_plot(
 
 def create_accuracy_comparison_plot(
     snr_values: List[float],
-    dt_per_snr: Dict[float, float],
     knn_per_snr: Dict[float, float],
     baseline: float = 50.0
 ) -> plt.Figure:
     """
-    Create accuracy vs SNR plot from per-SNR accuracy dictionaries.
+    Create accuracy vs SNR plot from per-SNR accuracy dictionary.
     
     Args:
         snr_values: List of SNR values
-        dt_per_snr: Dictionary mapping SNR to Decision Tree accuracy
         knn_per_snr: Dictionary mapping SNR to KNN accuracy
         baseline: Baseline accuracy (default 50.0 for 2-class)
     
@@ -513,14 +488,12 @@ def create_accuracy_comparison_plot(
         Matplotlib figure
     """
     # Extract accuracy values in order
-    dt_acc = [dt_per_snr.get(snr, 0.0) for snr in snr_values]
     knn_acc = [knn_per_snr.get(snr, 0.0) for snr in snr_values]
     baseline_acc = [baseline] * len(snr_values)
     
     return plot_accuracy_vs_snr(
         snr_values,
-        dt_acc,
         knn_acc,
         baseline_acc,
-        "Model Accuracy vs SNR"
+        "KNN Model Accuracy vs SNR"
     )

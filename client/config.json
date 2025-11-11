@@ -1,5 +1,5 @@
 {
-  "client_id": "client_u4bgul",
+  "client_id": "client_lp7mmk",
   "server_url": "http://localhost:8000",
   "dataset_path": "./data/RML2016.10a_dict.pkl",
   "local_model_path": "./client/local/local_model.pth",
@@ -8,5 +8,5 @@
     "batch_size": 32,
     "learning_rate": 0.001
   },
-  "partition_id": 1
+  "partition_id": 2
 }

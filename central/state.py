@@ -1018,7 +1018,6 @@ def capture_current_metrics() -> Dict:
     
     # Initialize metrics accumulators
     knn_accuracies = []
-    dt_accuracies = []
     all_per_snr_accuracy = {}
     all_predictions = []
     all_labels = []
@@ -1026,10 +1025,10 @@ def capture_current_metrics() -> Dict:
     
     for client_info in client_weights:
         try:
-            model_type = client_info.get('model_type', 'neural')
+            model_type = client_info.get('model_type', 'knn')
             
-            # Skip neural network models for now (focus on KNN and DT)
-            if model_type == 'neural':
+            # Only process KNN models
+            if model_type != 'knn':
                 continue
             
             # Load model
@@ -1066,11 +1065,7 @@ def capture_current_metrics() -> Dict:
             
             # Compute accuracy
             accuracy = accuracy_score(y_test, predictions)
-            
-            if model_type == 'knn':
-                knn_accuracies.append(accuracy)
-            elif model_type == 'dt':
-                dt_accuracies.append(accuracy)
+            knn_accuracies.append(accuracy)
             
             # Store predictions and labels for confusion matrix
             all_predictions.extend(predictions)
@@ -1110,7 +1105,6 @@ def capture_current_metrics() -> Dict:
     
     # Compute average metrics
     knn_avg_accuracy = float(np.mean(knn_accuracies)) if knn_accuracies else 0.0
-    dt_avg_accuracy = float(np.mean(dt_accuracies)) if dt_accuracies else 0.0
     
     # Average per-SNR accuracy across clients
     per_snr_avg = {}
@@ -1124,7 +1118,6 @@ def capture_current_metrics() -> Dict:
     
     return {
         'knn_accuracy': knn_avg_accuracy,
-        'dt_accuracy': dt_avg_accuracy,
         'per_snr_accuracy': per_snr_avg,
         'confusion_matrix': conf_matrix,
         'num_clients': num_clients,
@@ -1159,7 +1152,6 @@ def evaluate_global_model() -> Dict:
     dt_model_path = "./central/model_store/global_dt_ensemble.pkl"
     
     knn_accuracy = 0.0
-    dt_accuracy = 0.0
     per_snr_accuracy = {}
     conf_matrix = []
     
@@ -1240,44 +1232,15 @@ def evaluate_global_model() -> Dict:
         except Exception as e:
             pass
     
-    # Evaluate DT model if available
-    if os.path.exists(dt_model_path):
-        try:
-            with open(dt_model_path, 'rb') as f:
-                dt_model = pickle.load(f)
-            
-            predictions = dt_model.predict(X_test)
-            dt_accuracy = float(accuracy_score(y_test, predictions))
-            
-            # Use DT predictions for confusion matrix if KNN not available
-            if not all_predictions:
-                all_predictions.extend(predictions)
-                all_labels_for_cm.extend(y_test)
-            
-            # Compute per-SNR accuracy for DT if not already computed
-            if snr_test is not None and not per_snr_accuracy:
-                unique_snrs = np.unique(snr_test)
-                for snr in unique_snrs:
-                    snr_mask = snr_test == snr
-                    snr_labels = y_test[snr_mask]
-                    snr_predictions = predictions[snr_mask]
-                    
-                    if len(snr_labels) > 0:
-                        snr_accuracy = accuracy_score(snr_labels, snr_predictions)
-                        per_snr_accuracy[float(snr)] = snr_accuracy
-        except Exception as e:
-            pass
-    
     # Compute confusion matrix
     if all_predictions and all_labels_for_cm:
         conf_matrix = compute_confusion_matrix(all_labels_for_cm, all_predictions).tolist()
     
-    if knn_accuracy == 0.0 and dt_accuracy == 0.0:
-        raise ValueError("No global models available for evaluation")
+    if knn_accuracy == 0.0:
+        raise ValueError("No global KNN model available for evaluation")
     
     return {
         'knn_accuracy': knn_accuracy,
-        'dt_accuracy': dt_accuracy,
         'per_snr_accuracy': per_snr_accuracy,
         'confusion_matrix': conf_matrix,
         'timestamp': datetime.now().isoformat()
@@ -1304,15 +1267,11 @@ def store_aggregation_round(before_metrics: Dict, after_metrics: Dict) -> None:
         with _auto_aggregation_lock:
             round_num = _auto_aggregation_state['current_round']
         
-        # Calculate improvement percentages
+        # Calculate improvement percentage
         knn_improvement = 0.0
-        dt_improvement = 0.0
         
         if before_metrics.get('knn_accuracy', 0) > 0:
             knn_improvement = after_metrics.get('knn_accuracy', 0) - before_metrics.get('knn_accuracy', 0)
-        
-        if before_metrics.get('dt_accuracy', 0) > 0:
-            dt_improvement = after_metrics.get('dt_accuracy', 0) - before_metrics.get('dt_accuracy', 0)
         
         # Create round data
         round_data = {
@@ -1321,17 +1280,14 @@ def store_aggregation_round(before_metrics: Dict, after_metrics: Dict) -> None:
             'num_clients': before_metrics.get('num_clients', 0),
             'before': {
                 'knn_accuracy': before_metrics.get('knn_accuracy', 0.0),
-                'dt_accuracy': before_metrics.get('dt_accuracy', 0.0),
                 'per_snr_accuracy': before_metrics.get('per_snr_accuracy', {})
             },
             'after': {
                 'knn_accuracy': after_metrics.get('knn_accuracy', 0.0),
-                'dt_accuracy': after_metrics.get('dt_accuracy', 0.0),
                 'per_snr_accuracy': after_metrics.get('per_snr_accuracy', {})
             },
             'improvement': {
-                'knn': knn_improvement,
-                'dt': dt_improvement
+                'knn': knn_improvement
             }
         }
         
@@ -1383,38 +1339,30 @@ def get_accuracy_trends() -> Dict:
     """
     Get accuracy trends for plotting historical performance.
     
-    Extracts round numbers and accuracy values (before/after) for both
-    KNN and Decision Tree models from the last 10 rounds.
+    Extracts round numbers and accuracy values (before/after) for
+    KNN model from the last 10 rounds.
     
     Returns:
         dict: Dictionary containing:
             - rounds: List of round numbers
             - knn_before: List of KNN accuracy before aggregation
             - knn_after: List of KNN accuracy after aggregation
-            - dt_before: List of DT accuracy before aggregation
-            - dt_after: List of DT accuracy after aggregation
     """
     history = get_historical_metrics_history(last_n=10)
     
     rounds = []
     knn_before = []
     knn_after = []
-    dt_before = []
-    dt_after = []
     
     for round_data in history.get('rounds', []):
         rounds.append(round_data['round'])
         knn_before.append(round_data['before']['knn_accuracy'])
         knn_after.append(round_data['after']['knn_accuracy'])
-        dt_before.append(round_data['before']['dt_accuracy'])
-        dt_after.append(round_data['after']['dt_accuracy'])
     
     return {
         'rounds': rounds,
         'knn_before': knn_before,
-        'knn_after': knn_after,
-        'dt_before': dt_before,
-        'dt_after': dt_after
+        'knn_after': knn_after
     }
 
 

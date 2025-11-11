@@ -1,14 +1,13 @@
 [project]
 name = "federated-learning-system"
 version = "0.1.0"
-description = "Federated Learning System with Central Server and Client Nodes"
+description = "Federated Learning System with Central Server and Client Nodes - KNN Only"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
     "gradio>=4.0.0",
-    "torch>=2.0.0",
     "numpy>=1.24.0",
     "httpx>=0.25.0",
     "requests>=2.31.0",

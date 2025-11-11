@@ -19,7 +19,7 @@ from typing import Optional, Tuple
 
 from client.dataset_loader import load_radioml_dataset, get_dataset_info, split_dataset, flatten_dataset
 from client.feature_extract import process_dataset, normalize_features
-from client.train import train_local_model, save_local_model
+from client.train import train_knn_model, save_knn_model
 from client.sync import upload_weights, download_global_model, check_server_status
 from client.state import load_config, save_config, save_metrics, load_metrics
 
@@ -257,21 +257,17 @@ def train_model_handler(
         progress(0, desc="Initializing training...")
         
         
-        if model_type in ["KNN", "Decision Tree"]:
+        if model_type == "KNN":
             
-            from client.train import train_traditional_model, save_traditional_model
+            logger.info(f"Starting KNN training")
+            progress(0.2, desc=f"Training KNN model...")
             
-            logger.info(f"Starting {model_type} training")
-            progress(0.2, desc=f"Training {model_type} model...")
-            
-            model_type_code = 'knn' if model_type == "KNN" else 'dt'
-            results = train_traditional_model(
+            model_type_code = 'knn'
+            results = train_knn_model(
                 features=state.features,
                 labels=state.labels,
-                model_type=model_type_code,
-                test_split=0.2,
+                test_split=0.3,  # Matching notebook's 30% test split
                 n_neighbors=5,
-                max_depth=None,
                 random_state=42,
                 verbose=True
             )
@@ -287,7 +283,7 @@ def train_model_handler(
                 model_path = state.config.get('local_model_path', './client/local/local_model.pth')
                 
                 model_path = model_path.replace('.pth', f'_{model_type_code}.pkl')
-                save_traditional_model(state.trained_model, model_path)
+                save_knn_model(state.trained_model, model_path)
                 
                 
                 features_path = model_path.replace(f'_{model_type_code}.pkl', f'_{model_type_code}_features.pkl')
@@ -337,100 +333,11 @@ def train_model_handler(
 """
             
             logger.info(f"Training complete! Test Accuracy: {results['test_accuracy']*100:.2f}%")
-            
-        else:  
-            logger.info(f"Starting training: epochs={epochs}, batch_size={batch_size}, lr={learning_rate}")
-            
-            
-            import threading
-            import time
-            
-            training_complete = threading.Event()
-            start_time = time.time()
-            
-            def update_progress():
-                """Update progress bar during training with time remaining"""
-                for i in range(epochs):
-                    if training_complete.is_set():
-                        break
-                    
-                    progress_pct = 0.1 + (0.7 * (i + 1) / epochs)
-                    
-                    
-                    elapsed = time.time() - start_time
-                    if i > 0:
-                        avg_time_per_epoch = elapsed / i
-                        remaining_epochs = epochs - i
-                        time_remaining = avg_time_per_epoch * remaining_epochs
-                        mins = int(time_remaining // 60)
-                        secs = int(time_remaining % 60)
-                        time_str = f" - ~{mins}m {secs}s left" if mins > 0 else f" - ~{secs}s left"
-                    else:
-                        time_str = ""
-                    
-                    progress(progress_pct, desc=f"Epoch {i+1}/{epochs}{time_str}")
-                    time.sleep(0.5)
-            
-            
-            progress_thread = threading.Thread(target=update_progress, daemon=True)
-            progress_thread.start()
-            
-            
-            results = train_local_model(
-                features=state.features,
-                labels=state.labels,
-                epochs=epochs,
-                batch_size=batch_size,
-                learning_rate=learning_rate,
-                test_split=0.2,
-                verbose=False
-            )
-            
-            
-            training_complete.set()
-            progress_thread.join(timeout=1)
-            
-            
-            state.trained_model = results['model']
-            state.training_results = results
-            
-            progress(0.8, desc="Saving model...")
-            
-            
-            if state.config:
-                model_path = state.config.get('local_model_path', './client/local/local_model.pth')
-                save_local_model(state.trained_model, model_path)
-                
-                
-                metrics = {
-                    'timestamp': datetime.now().isoformat(),
-                    'model_type': 'neural_network',
-                    'train_loss': float(results['train_loss']),
-                    'train_accuracy': float(results['train_accuracy']),
-                    'test_loss': float(results['test_loss']),
-                    'test_accuracy': float(results['test_accuracy']),
-                    'epochs': epochs,
-                    'n_samples': int(results['n_samples'])
-                }
-                save_metrics(metrics)
-            
-            progress(0.9, desc="Training complete!")
-            
-            
-            metrics_text = f"""**✅ Training Complete!**
-
-**Model:** Neural Network
-
-**Results:**
-- **Test Accuracy:** {results['test_accuracy']*100:.2f}%
-- **Train Accuracy:** {results['train_accuracy']*100:.2f}%
-- **Test Loss:** {results['test_loss']:.4f}
-- **Train Loss:** {results['train_loss']:.4f}
-- **Training Samples:** {results['n_samples']:,}
-- **Epochs Completed:** {epochs}
-"""
-            
-            logger.info(f"Training complete! Test Accuracy: {results['test_accuracy']*100:.2f}%")
+        else:
+            # Only KNN is supported
+            error_msg = f"❌ Model type '{model_type}' is not supported. Only KNN is available."
+            logger.error(error_msg)
+            return error_msg, ""
         
         
         update_training_status_on_server(client_id, server_url, training=False)
@@ -485,102 +392,65 @@ def auto_upload_and_aggregate(client_id: str, server_url: str) -> str:
         
         
         n_samples = state.training_results.get('n_samples', len(state.features))
-        model_type = state.training_results.get('model_type', 'neural')
+        model_type = state.training_results.get('model_type', 'knn')
         
+        # KNN model upload
+        model_path = state.training_results.get('model_path')
+        features_path = state.training_results.get('features_path')
+        labels_path = state.training_results.get('labels_path')
         
-        if model_type in ['knn', 'dt']:
+        if not model_path or not os.path.exists(model_path):
+            return f" Error: Model file not found"
+        
+        if not features_path or not os.path.exists(features_path):
+            return f" Error: Features file not found"
+        
+        if not labels_path or not os.path.exists(labels_path):
+            return f" Error: Labels file not found"
+        
+        try:
+            import requests
             
-            model_path = state.training_results.get('model_path')
-            features_path = state.training_results.get('features_path')
-            labels_path = state.training_results.get('labels_path')
+            # Open all required files for KNN upload
+            files = {
+                'model_file': open(model_path, 'rb'),
+                'features_file': open(features_path, 'rb'),
+                'labels_file': open(labels_path, 'rb')
+            }
             
-            if not model_path or not os.path.exists(model_path):
-                return f" Error: Model file not found"
+            # Use the new /upload_model endpoint
+            url = f"{server_url.rstrip('/')}/upload_model/{client_id}"
+            params = {
+                'n_samples': n_samples
+            }
             
-            try:
-                import requests
+            response = requests.post(url, params=params, files=files, timeout=30)
+            
+            # Close all files
+            for f in files.values():
+                f.close()
+            
+            if response.status_code == 200:
+                data = response.json()
+                upload_status = data.get('upload_status', {})
+                pending = upload_status.get('pending_uploads', 0)
+                threshold = upload_status.get('threshold', 2)
                 
-                files = {
-                    'model_file': open(model_path, 'rb')
-                }
-                if model_type == 'knn' and features_path and labels_path:
-                    if os.path.exists(features_path) and os.path.exists(labels_path):
-                        files['features_file'] = open(features_path, 'rb')
-                        files['labels_file'] = open(labels_path, 'rb')
+                status_msg = f"✅ KNN model uploaded successfully!\n"
+                status_msg += f"📊 Upload progress: {pending}/{threshold} clients\n"
                 
-                
-                url = f"{server_url.rstrip('/')}/upload_traditional_model/{client_id}"
-                params = {
-                    'n_samples': n_samples,
-                    'model_type': model_type
-                }
-                
-                response = requests.post(url, params=params, files=files, timeout=30)
-                
-                
-                for f in files.values():
-                    f.close()
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    upload_status = data.get('upload_status', {})
-                    pending = upload_status.get('pending_uploads', 0)
-                    threshold = upload_status.get('threshold', 2)
-                    
-                    status_msg = f"✅ {model_type.upper()} model uploaded successfully!\n"
-                    status_msg += f"📊 Upload progress: {pending}/{threshold} clients\n"
-                    
-                    if upload_status.get('ready_for_aggregation', False):
-                        status_msg += f"🚀 Auto-aggregation will trigger automatically!"
-                    else:
-                        status_msg += f"⏳ Waiting for more clients..."
-                    
-                    return status_msg
+                if upload_status.get('ready_for_aggregation', False):
+                    status_msg += f"🚀 Auto-aggregation will trigger automatically!"
                 else:
-                    return f" Error: Upload failed with status {response.status_code}: {response.text}"
-                    
-            except Exception as e:
-                logger.error(f"Error uploading traditional model: {e}")
-                return f" Error: Failed to upload model: {str(e)}"
-        
-        else:
-            
-            model_path = state.config.get('local_model_path', './client/local/local_model.pth')
-            
-            if not os.path.exists(model_path):
-                return f" Error: Model file not found at {model_path}"
-            
-            
-            success = upload_weights(
-                server_url=server_url,
-                client_id=client_id,
-                weights_path=model_path,
-                n_samples=n_samples,
-                max_retries=3,
-                timeout=30
-            )
-            
-            if success:
+                    status_msg += f"⏳ Waiting for more clients..."
                 
-                try:
-                    import requests
-                    response = requests.get(f"{server_url.rstrip('/')}/status", timeout=5)
-                    if response.status_code == 200:
-                        data = response.json()
-                        total_clients = data.get('total_clients', 0)
-                        total_samples = data.get('total_samples', 0)
-                        
-                        status_msg = f"✅ Weights uploaded successfully!\n"
-                        status_msg += f"📊 Server status: {total_clients} clients, {total_samples:,} total samples\n"
-                        status_msg += f"⏳ Waiting for aggregation..."
-                        
-                        return status_msg
-                except:
-                    pass
-                
-                return f"✅ Weights uploaded successfully to {server_url}"
+                return status_msg
             else:
-                return " Error: Failed to upload weights. Check logs for details."
+                return f" Error: Upload failed with status {response.status_code}: {response.text}"
+                
+        except Exception as e:
+            logger.error(f"Error uploading KNN model: {e}")
+            return f" Error: Failed to upload model: {str(e)}"
         
     except Exception as e:
         error_msg = f" Error in auto-upload: {str(e)}"
@@ -814,9 +684,9 @@ def create_gradio_interface(auto_generate_id: bool = False):
         # Training Section
         with gr.Accordion("Training", open=True):
             model_type_radio = gr.Radio(
-                choices=["KNN", "Decision Tree", "Neural Network"],
+                choices=["KNN"],
                 value="KNN",
-                label="Model Type"
+                label="Model Type (KNN Only)"
             )
             
             with gr.Row():
