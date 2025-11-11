@@ -138,6 +138,9 @@ uv sync
 
 #### Download unzip Dataset 
 ```bash
+cd data
+```
+```bash
 curl -L -o ./radioml2016-deepsigcom.zip \
   https://www.kaggle.com/api/v1/datasets/download/nolasthitnotomorrow/radioml2016-deepsigcom
 ````
