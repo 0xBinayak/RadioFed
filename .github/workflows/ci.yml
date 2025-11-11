@@ -43,7 +43,7 @@ jobs:
       
       - name: Partition Dataset
         run: |
-          uv run data/partition_dataset.py || echo "Skipping partition step if no dataset"
+          uv run data/partition_dataset.py --input RML2016.10a_dict.pkl  --num-clients 100  || echo "Skipping partition step if no dataset"
 
       
       - name: Run Tests
